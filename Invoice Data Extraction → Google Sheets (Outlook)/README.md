@@ -27,6 +27,17 @@ Regular Invoices   Needs Review
    (sheet tab)       (sheet tab)
 ```
 
+### What each step is doing
+
+1. **Schedule Trigger** — the whole thing runs on a timer, checking for new invoices every 60 seconds. Nobody has to start it.
+2. **Get many messages** — pulls recent messages from the Outlook folder you point it at.
+3. **Remove Duplicates** — keeps track of which emails it has already handled so the same invoice never gets processed (or written to the sheet) twice.
+4. **Get many attachments → Download an attachment** — Outlook hands back attachments through its own nodes, so these two pull the actual PDF file out of each email before anything else happens.
+5. **Analyze document** — this is the part doing the real work. Each PDF goes to Claude, which reads it like a person would and returns the invoice number, vendor, amount, a short description, and a confidence score, as clean JSON.
+6. **Code in JavaScript** — Claude can return several invoices from one PDF (a statement with multiple line items, say). This step splits them into one row each and tags every row with the subject of the email it came from.
+7. **IF confidence ≥ 80** — the quality gate. Claude scored how sure it was about each invoice from 0 to 100. Anything 80 or above is treated as trustworthy; anything below gets set aside.
+8. **Regular Invoices vs. Needs Review** — confident rows land in the main **Regular Invoices** tab ready to use. Anything Claude wasn't sure about goes to a separate **Needs Review** tab so a person can glance at it before it counts, instead of a wrong number quietly ending up in the books.
+
 ## The files
 
 | File | What it is |

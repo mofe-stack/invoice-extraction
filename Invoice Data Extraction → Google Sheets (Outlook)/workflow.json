@@ -1,0 +1,523 @@
+{
+  "name": "Invoice Data Extraction → Google Sheets (Outlook)",
+  "nodes": [
+    {
+      "parameters": {
+        "resource": "messageAttachment",
+        "operation": "download",
+        "messageId": {
+          "__rl": true,
+          "value": "={{ $('Get many messages').item.json.id }}",
+          "mode": "id"
+        },
+        "attachmentId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        }
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        -1088,
+        16
+      ],
+      "id": "50342ce7-c123-4365-9822-46702953bf60",
+      "name": "Download an attachment"
+    },
+    {
+      "parameters": {
+        "resource": "messageAttachment",
+        "operation": "getAll",
+        "messageId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        -1312,
+        16
+      ],
+      "id": "0da9bb83-bdb2-4851-98d4-4387f3078963",
+      "name": "Get many attachments"
+    },
+    {
+      "parameters": {
+        "resource": "document",
+        "modelId": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "list",
+          "cachedResultName": "claude-sonnet-4-6"
+        },
+        "text": "You are an invoice data extractor. Read the attached invoice or statement document and extract every distinct payable item as a JSON array.\n\nCRITICAL RULES:\n1. Return ONLY valid JSON. No explanations, no markdown, no code blocks. Just the raw JSON array.\n2. NEVER invent data. If a value is not visible in the document, do not include that invoice.\n3. Each invoice gets ONE object in the array.\n4. If the document is a STATEMENT with multiple invoice line items, return ONE object per line item.\n5. If the document is a SINGLE invoice, return an array with one object.\n6. If it's a TAX NOTICE with tiered amounts based on payment date, use the EARLIEST/base amount.\n\nVENDOR RULES:\n- Vendor = the company or entity SENDING the bill (the one you have to pay).\n- Look at the document header, logo, or \"From\" section to find the vendor.\n- Use the cleanest version of the company name — drop \"Inc.\", \"LLC\", \"Corp.\" unless that's how they brand themselves.\n- The vendor stays the SAME across all line items in a statement.\n- Do NOT use the entity being billed as the vendor. That's the customer, not the vendor.\n\nINVOICE NUMBER RULES:\n- If a real invoice/file/reference number exists, use it.\n- If NO invoice number exists, use the invoice date in \"MMM-YY\" format (e.g. \"Apr-26\" for April 2026).\n- If it's an annual/yearly filing with no number, use the year (e.g. \"2026\").\n\nAMOUNT RULES:\n- Numbers only, no currency symbol, no commas.\n- For SINGLE invoices: use the invoice total (Balance Due / Amount Due / Total).\n- For STATEMENTS: use the per-line-item amount, NOT the grand total.\n- For TAX NOTICES: use the base/earliest amount, not penalty amounts.\n\nDETAILS RULES:\n- Brief description of what the charge is for. Keep under 60 characters when possible.\n- For statements: include the entity being billed (e.g. \"ACME HOLDINGS LLC\")\n- For single invoices: describe the service (e.g. \"Bookkeeping and Reconciliation Q2 2026\")\n\nCONFIDENCE SCORING: Each invoice must include a confidence score (0-100) representing how certain you are about the extraction.\n- 95-100: All fields clearly visible and unambiguous in the document\n- 80-94: Fields extracted with minor uncertainty (e.g., slight formatting differences, minor ambiguity)\n- 60-79: One or more fields had real ambiguity or required inference\n- Below 60: Significant uncertainty (poor scan quality, unclear values, conflicting information, possibly not even an invoice)\n\nBE HONEST ABOUT CONFIDENCE. It is better to flag uncertain extractions for human review than to confidently write wrong data. When in doubt between two bands, choose the lower one. A false 95 that puts wrong data into the books is a much worse outcome than an honest 75 that gets a 10-second human glance.\n\nSpecifically:\n- If you had to GUESS a field value, the score MUST be below 80 so it gets human review. Guessing means: the value was partially illegible, smudged, cut off, faded, handwritten unclearly, or otherwise not cleanly readable, and you picked the most likely interpretation knowing you could be wrong.\n- If you return a value of null, empty string, or blank for any field, the score MUST be below 60. A blank field means the data wasn't extractable and the row needs human review before it goes into the books.\n- If a required field (vendor, amount, or invoice number) is completely missing or unreadable and you had to fabricate or leave it blank, the score MUST be below 60.\n- If document quality genuinely impairs extraction (illegible text, heavy blur, rotation, OCR noise that forces guessing on values), cap at 70. A clean scan where all fields are sharp and readable is NOT poor quality.\n- If you're not sure it's even an invoice (could be a receipt, statement summary, marketing email with a PDF), score below 60.\n\nOUTPUT SCHEMA (return an array of these objects):\n{\n  \"invoice_number\": string,\n  \"vendor\": string,\n  \"details\": string,\n  \"amount\": number,\n  \"confidence\": number\n}\n\nReturn ONLY the JSON array, nothing else.",
+        "inputType": "binary",
+        "simplify": false,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        -864,
+        16
+      ],
+      "id": "46c3318c-2126-4ef7-9d30-10c43fc93096",
+      "name": "Analyze document",
+      "credentials": {
+        "anthropicApi": {
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all items from Claude (one per attachment)\nconst allItems = $input.all();\nconst allInvoices = [];\n\n// Get the source email subject for this run\nconst sourceMessage = $('Get many messages').item.json;\nconst emailName = sourceMessage.subject || '(No subject)';\n\n// Loop through each AI response\nfor (const item of allItems) {\n  const aiText = item.json.content[0].text;\n  \n  // Parse the JSON string into a real array\n  const invoices = JSON.parse(aiText);\n  \n  // Attach the source email subject to every invoice from this email\n  for (const invoice of invoices) {\n    allInvoices.push({\n      ...invoice,\n      emailName: emailName\n    });\n  }\n}\n\n// Return each invoice as a separate item for the next node\nreturn allInvoices.map(invoice => ({ json: invoice }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        16
+      ],
+      "id": "e17ef6ee-353a-421f-8a32-425de210e7f4",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1984,
+        16
+      ],
+      "id": "4ecde054-0dab-4333-8e40-462ace31e4d1",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 50,
+        "filtersUI": {
+          "values": {
+            "filters": {
+              "hasAttachments": true,
+              "foldersToInclude": [
+                "YOUR_OUTLOOK_FOLDER_ID"
+              ]
+            }
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        -1760,
+        16
+      ],
+      "id": "4b3051f3-315a-4eb7-aa6f-9006a8d23cde",
+      "name": "Get many messages",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "operation": "removeItemsSeenInPreviousExecutions",
+        "dedupeValue": "={{ $json.id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        -1536,
+        16
+      ],
+      "id": "70dcafc4-f911-4edb-a585-b4e2d043d7b2",
+      "name": "Remove Duplicates"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "YOUR_SHEET_TAB",
+          "mode": "id",
+          "cachedResultName": "Invoices"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Invoice #": "={{ $json.invoice_number }}",
+            "Vendor": "={{ $json.vendor }}",
+            "Details": "={{ $json.details }}",
+            "Amount": "={{ $json.amount }}",
+            "Confidence": "={{ $json.confidence }}",
+            "Email Name": "={{ $json.emailName }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Invoice #",
+              "displayName": "Invoice #",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Vendor",
+              "displayName": "Vendor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Details",
+              "displayName": "Details",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Amount",
+              "displayName": "Amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Confidence",
+              "displayName": "Confidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email Name",
+              "displayName": "Email Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "locationDefine": {
+            "values": {
+              "headerRow": 2
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -192,
+        -80
+      ],
+      "id": "c7a917df-e936-4937-b694-1bd6eae72ab7",
+      "name": "Regular Invoices",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "YOUR_SHEET_TAB",
+          "mode": "id",
+          "cachedResultName": "Needs Review"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Invoice #": "={{ $json.invoice_number }}",
+            "Vendor": "={{ $json.vendor }}",
+            "Details": "={{ $json.details }}",
+            "Amount": "={{ $json.amount }}",
+            "Confidence": "={{ $json.confidence }}",
+            "Email Name": "={{ $json.emailName }}"
+          },
+          "matchingColumns": [
+            "Legal Fees On Hold"
+          ],
+          "schema": [
+            {
+              "id": "Invoice #",
+              "displayName": "Invoice #",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Vendor",
+              "displayName": "Vendor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Details",
+              "displayName": "Details",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Amount",
+              "displayName": "Amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Confidence",
+              "displayName": "Confidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email Name",
+              "displayName": "Email Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "locationDefine": {
+            "values": {
+              "headerRow": 3
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -192,
+        112
+      ],
+      "id": "d9a9c750-7ebb-4f14-910a-461a083fff1b",
+      "name": "Needs Review",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d3af7124-3399-4538-95c3-a93c72c95ecb",
+              "leftValue": "={{ $json.confidence }}",
+              "rightValue": 80,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -416,
+        16
+      ],
+      "id": "b86a88ec-aa73-43f2-b8c1-0d6d34fcb8a9",
+      "name": "If"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Download an attachment": {
+      "main": [
+        [
+          {
+            "node": "Analyze document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many attachments": {
+      "main": [
+        [
+          {
+            "node": "Download an attachment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze document": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get many messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many messages": {
+      "main": [
+        [
+          {
+            "node": "Remove Duplicates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Duplicates": {
+      "main": [
+        [
+          {
+            "node": "Get many attachments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Regular Invoices",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Needs Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "meta": {},
+  "nodeGroups": [],
+  "tags": []
+}

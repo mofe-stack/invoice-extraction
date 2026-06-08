@@ -1,4 +1,32 @@
-// ===== n8n Code node: Code in JavaScript =====
+// ===== n8n Code node: Keep PDF's only =====
+
+// Keep PDF's only — Outlook
+// Sits between "Get many attachments" and "Download an attachment".
+// Outlook gives us attachment metadata here (name + contentType, no file yet),
+// so we filter on that and only let PDFs through to be downloaded.
+
+const items = $input.all();
+const results = [];
+
+for (let i = 0; i < items.length; i++) {
+  const j = items[i].json || {};
+  const name = (j.name || '').toLowerCase();
+  const contentType = (j.contentType || '').toLowerCase();
+
+  const isPdf = contentType === 'application/pdf' || name.endsWith('.pdf');
+
+  if (isPdf) {
+    results.push({
+      json: j,
+      pairedItem: items[i].pairedItem ?? { item: i },
+    });
+  }
+}
+
+return results;
+
+
+// ===== n8n Code node: Format Invoice =====
 
 // Get all items from Claude (one per attachment)
 const allItems = $input.all();

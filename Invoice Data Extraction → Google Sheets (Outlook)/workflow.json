@@ -19,7 +19,7 @@
       "type": "n8n-nodes-base.microsoftOutlook",
       "typeVersion": 2,
       "position": [
-        -1088,
+        -864,
         16
       ],
       "id": "50342ce7-c123-4365-9822-46702953bf60",
@@ -63,7 +63,7 @@
       "type": "@n8n/n8n-nodes-langchain.anthropic",
       "typeVersion": 1,
       "position": [
-        -864,
+        -640,
         16
       ],
       "id": "46c3318c-2126-4ef7-9d30-10c43fc93096",
@@ -73,19 +73,6 @@
           "name": "Anthropic account"
         }
       }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Get all items from Claude (one per attachment)\nconst allItems = $input.all();\nconst allInvoices = [];\n\n// Get the source email subject for this run\nconst sourceMessage = $('Get many messages').item.json;\nconst emailName = sourceMessage.subject || '(No subject)';\n\n// Loop through each AI response\nfor (const item of allItems) {\n  const aiText = item.json.content[0].text;\n  \n  // Parse the JSON string into a real array\n  const invoices = JSON.parse(aiText);\n  \n  // Attach the source email subject to every invoice from this email\n  for (const invoice of invoices) {\n    allInvoices.push({\n      ...invoice,\n      emailName: emailName\n    });\n  }\n}\n\n// Return each invoice as a separate item for the next node\nreturn allInvoices.map(invoice => ({ json: invoice }));"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -640,
-        16
-      ],
-      "id": "e17ef6ee-353a-421f-8a32-425de210e7f4",
-      "name": "Code in JavaScript"
     },
     {
       "parameters": {
@@ -255,7 +242,7 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        -192,
+        32,
         -80
       ],
       "id": "c7a917df-e936-4937-b694-1bd6eae72ab7",
@@ -369,7 +356,7 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        -192,
+        32,
         112
       ],
       "id": "d9a9c750-7ebb-4f14-910a-461a083fff1b",
@@ -407,11 +394,37 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -416,
+        -192,
         16
       ],
       "id": "b86a88ec-aa73-43f2-b8c1-0d6d34fcb8a9",
       "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all items from Claude (one per attachment)\nconst allItems = $input.all();\nconst allInvoices = [];\n\n// Get the source email subject for this run\nconst sourceMessage = $('Get many messages').item.json;\nconst emailName = sourceMessage.subject || '(No subject)';\n\n// Loop through each AI response\nfor (const item of allItems) {\n  const aiText = item.json.content[0].text;\n  \n  // Parse the JSON string into a real array\n  const invoices = JSON.parse(aiText);\n  \n  // Attach the source email subject to every invoice from this email\n  for (const invoice of invoices) {\n    allInvoices.push({\n      ...invoice,\n      emailName: emailName\n    });\n  }\n}\n\n// Return each invoice as a separate item for the next node\nreturn allInvoices.map(invoice => ({ json: invoice }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -416,
+        16
+      ],
+      "id": "e17ef6ee-353a-421f-8a32-425de210e7f4",
+      "name": "Format Invoice"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Keep PDF's only — Outlook\n// Sits between \"Get many attachments\" and \"Download an attachment\".\n// Outlook gives us attachment metadata here (name + contentType, no file yet),\n// so we filter on that and only let PDFs through to be downloaded.\n\nconst items = $input.all();\nconst results = [];\n\nfor (let i = 0; i < items.length; i++) {\n  const j = items[i].json || {};\n  const name = (j.name || '').toLowerCase();\n  const contentType = (j.contentType || '').toLowerCase();\n\n  const isPdf = contentType === 'application/pdf' || name.endsWith('.pdf');\n\n  if (isPdf) {\n    results.push({\n      json: j,\n      pairedItem: items[i].pairedItem ?? { item: i },\n    });\n  }\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1088,
+        16
+      ],
+      "id": "e5835107-cb96-4d69-abe5-5d0ebe35af5e",
+      "name": "Keep PDF's only"
     }
   ],
   "pinData": {},
@@ -431,7 +444,7 @@
       "main": [
         [
           {
-            "node": "Download an attachment",
+            "node": "Keep PDF's only",
             "type": "main",
             "index": 0
           }
@@ -442,18 +455,7 @@
       "main": [
         [
           {
-            "node": "Code in JavaScript",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code in JavaScript": {
-      "main": [
-        [
-          {
-            "node": "If",
+            "node": "Format Invoice",
             "type": "main",
             "index": 0
           }
@@ -505,6 +507,28 @@
         [
           {
             "node": "Needs Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Invoice": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep PDF's only": {
+      "main": [
+        [
+          {
+            "node": "Download an attachment",
             "type": "main",
             "index": 0
           }

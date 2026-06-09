@@ -42,7 +42,7 @@ Each invoice becomes one object:
 
 ```json
 {
-  "invoice_number": "INV-1042",
+  "invoice_number": "1042",
   "vendor": "Mavryk",
   "details": "Janitorial services April 2026",
   "amount": 1850.00,

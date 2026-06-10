@@ -363,7 +363,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1120,
+        -896,
         96
       ],
       "id": "1e40167a-3d69-4488-8798-42ceabb4a94d",
@@ -394,7 +394,7 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        -896,
+        -1120,
         96
       ],
       "id": "5a54d2f7-f6d2-4f34-98b9-cd1d6aea60c0",
@@ -434,7 +434,7 @@
       "main": [
         [
           {
-            "node": "Keep PDF's only",
+            "node": "Download Invoices",
             "type": "main",
             "index": 0
           }
@@ -474,7 +474,7 @@
       "main": [
         [
           {
-            "node": "Download Invoices",
+            "node": "Analyze document",
             "type": "main",
             "index": 0
           }
@@ -496,7 +496,7 @@
       "main": [
         [
           {
-            "node": "Analyze document",
+            "node": "Keep PDF's only",
             "type": "main",
             "index": 0
           }

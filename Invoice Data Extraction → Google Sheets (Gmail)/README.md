@@ -15,9 +15,9 @@ Get Invoices (Gmail — list messages from a label, no attachments)
         ↓
 Remove Duplicates (skip messages already processed)
         ↓
-Keep PDF's only (drop non-PDF attachments)
-        ↓
 Download Invoices (Gmail — fetch the full message + attachments by ID)
+        ↓
+Keep PDF's only (drop non-PDF attachments)
         ↓
 Analyze document (Claude reads each PDF → JSON)
         ↓
@@ -36,8 +36,8 @@ Regular Invoices   Needs Review
 1. **Schedule Trigger** — the whole thing runs on a timer, checking for new invoices every 60 seconds. Nobody has to start it.
 2. **Get Invoices** — lists recent messages from the Gmail label you point it at (metadata only, attachments are *not* downloaded here). Only emails carrying that label get looked at, so the rest of your inbox is left alone.
 3. **Remove Duplicates** — keeps track of which emails it has already handled so the same invoice never gets processed (or written to the sheet) twice.
-4. **Keep PDF's only** — throws out anything that isn't a PDF, like email signatures, logos, or images, so Claude only ever looks at actual invoice files.
-5. **Download Invoices** — fetches the full message and its attachments by message ID. Pulling attachments here, after the dedupe and PDF filters, means you only download files for messages that actually make it through.
+4. **Download Invoices** — fetches the full message and its attachments by message ID. Pulling attachments here, after the dedupe, means you only download files for messages you haven't already handled, instead of dragging every attachment down on every run.
+5. **Keep PDF's only** — throws out anything that isn't a PDF, like email signatures, logos, or images, so Claude only ever looks at actual invoice files.
 6. **Analyze document** — this is the part doing the real work. Each PDF goes to Claude, which reads it like a person would and returns the invoice number, vendor, amount, a short description, and a confidence score, as clean JSON.
 7. **Format Invoices** — Claude can return several invoices from one PDF (a statement with multiple line items, say). This step splits them into one row each and tags every row with the subject of the email it came from.
 8. **IF confidence ≥ 80** — the quality gate. Claude scored how sure it was about each invoice from 0 to 100. Anything 80 or above is treated as trustworthy; anything below gets set aside.

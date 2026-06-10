@@ -18,7 +18,7 @@
       "type": "@n8n/n8n-nodes-langchain.anthropic",
       "typeVersion": 1,
       "position": [
-        -896,
+        -672,
         96
       ],
       "id": "af6876f5-3dab-4ceb-ba0a-a16a2ef4ab21",
@@ -170,7 +170,7 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        -224,
+        0,
         0
       ],
       "id": "9da3ab85-a74b-4a0b-bed5-e6037bf02559",
@@ -284,7 +284,7 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        -224,
+        0,
         192
       ],
       "id": "fd1d48fa-9fc0-4be2-b77a-184d9f2bf48d",
@@ -322,7 +322,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -448,
+        -224,
         96
       ],
       "id": "76a0ac15-5d56-40f9-932c-bd6d2078436b",
@@ -339,7 +339,7 @@
           ]
         },
         "options": {
-          "downloadAttachments": true
+          "downloadAttachments": false
         }
       },
       "type": "n8n-nodes-base.gmail",
@@ -376,11 +376,34 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -672,
+        -448,
         96
       ],
       "id": "9a553f43-b4ab-4fa0-a75e-a31fa8c02542",
       "name": "Format Invoices"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "messageId": "={{ $json.id }}",
+        "simple": false,
+        "options": {
+          "downloadAttachments": true
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -896,
+        96
+      ],
+      "id": "5a54d2f7-f6d2-4f34-98b9-cd1d6aea60c0",
+      "name": "Download Invoices",
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail account"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -451,7 +474,7 @@
       "main": [
         [
           {
-            "node": "Analyze document",
+            "node": "Download Invoices",
             "type": "main",
             "index": 0
           }
@@ -463,6 +486,17 @@
         [
           {
             "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Invoices": {
+      "main": [
+        [
+          {
+            "node": "Analyze document",
             "type": "main",
             "index": 0
           }

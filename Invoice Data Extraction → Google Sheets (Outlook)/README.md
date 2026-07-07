@@ -2,7 +2,7 @@
 
 The Outlook version of the invoice automation. It watches an Outlook folder, reads PDF invoices with Claude, and writes the results to a Google Sheet. Rows Claude is confident about go to the main tab; the rest go to a Needs Review tab.
 
-If you use Gmail instead, grab the Gmail version in the folder next door. The only difference is the email node at the front.
+If you use Gmail instead, grab the Gmail version in the folder next door. Heads up: the Gmail version has moved ahead of this one — it also reads image attachments (scans, receipts, card-transaction screenshots), retries automatically on network failures, and files handled emails into a "Processed" label so the watched label stays clean. This Outlook version is the original, simpler PDF-only pipeline. Porting those features over would follow the same shape (the Gmail folder's README documents each piece).
 
 ## The flow
 

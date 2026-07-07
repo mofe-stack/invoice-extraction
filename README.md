@@ -9,9 +9,9 @@ There are two versions, depending on which inbox you use:
 - [**Invoice Data Extraction → Google Sheets (Gmail)**](./Invoice%20Data%20Extraction%20%E2%86%92%20Google%20Sheets%20%28Gmail%29)
 - [**Invoice Data Extraction → Google Sheets (Outlook)**](./Invoice%20Data%20Extraction%20%E2%86%92%20Google%20Sheets%20%28Outlook%29)
 
-The Gmail version is the one running in production and has the full feature set: PDF **and image** extraction, transaction/receipt handling, automatic retries on network failures, and the processed-label filing. The Outlook version is the original, simpler pipeline (PDF-only, no filing step) — same idea, fewer moving parts.
+Both versions have the same feature set: PDF **and image** extraction, transaction/receipt handling, automatic retries on network failures, and the processed filing. Gmail files finished emails by swapping labels; Outlook moves them to a folder. The Gmail version is the one running in production; the Outlook version mirrors it node-for-node in the Outlook way.
 
-## How it works (Gmail version)
+## How it works
 
 ```
 Schedule Trigger (hourly)
@@ -34,7 +34,7 @@ Regular Invoices   Needs Review
    (sheet tab)       (sheet tab)
        \              /
         ↓ after both writes
-Move the email to the "Processed" label
+Move the email to "Processed" (Gmail label swap / Outlook folder move)
 ```
 
 The confidence score is the part I care about most. Claude rates how sure it is about each extraction from 0 to 100. Clean, clearly-readable invoices score high and go straight to the main tab. Anything blurry, cut off, or ambiguous scores low and lands in Needs Review so a person can glance at it before it counts. The idea is that a wrong number sitting quietly in your books is worse than one that asks for ten seconds of attention.

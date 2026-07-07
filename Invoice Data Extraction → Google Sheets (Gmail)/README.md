@@ -4,7 +4,7 @@ The Gmail version of the invoice automation. It watches a Gmail label, reads PDF
 
 The label is how you tell it which emails to look at: set up a Gmail filter (or just apply a label by hand) so invoice emails get tagged with, say, an `Invoices` label, and the workflow only ever touches that label. Once an email's invoices are in the sheet, the workflow swaps that label for a `Processed` one — so the `Invoices` label works like an inbox/queue and `Processed` is the archive.
 
-If you use Outlook instead, grab the Outlook version in the folder next door. Heads up: the Outlook version is the original, simpler pipeline (PDF-only, no processed-folder step) — the features below are Gmail-only for now.
+If you use Outlook instead, grab the Outlook version in the folder next door. It has the same features — the processed step is a folder move there instead of a label swap.
 
 ## The flow
 
